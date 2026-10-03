@@ -1,0 +1,11 @@
+# Python bytecode cache
+__pycache__/
+*.pyc
+
+# Mac system files
+.DS_Store
+
+# Virtual environments (if you use them)
+fdevirtualenvironment/
+.venv/
+env/
