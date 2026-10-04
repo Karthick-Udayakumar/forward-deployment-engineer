@@ -1,0 +1,38 @@
+[
+    {
+        "invoice_id": "INV-101",
+        "vendor": "ABC Ltd",
+        "amount": 85000,
+        "status": "PENDING"
+    },
+    {
+        "invoice_id": "INV-102",
+        "vendor": "XYZ Corp",
+        "amount": 142500,
+        "status": "PENDING"
+    },
+    {
+        "invoice_id": "INV-103",
+        "vendor": "Amazon LLC",
+        "amount": 332500.0,
+        "status": "PAID"
+    },
+    {
+        "invoice_id": "INV-104",
+        "vendor": "FlipKart LLC",
+        "amount": 232500.0,
+        "status": "On Hold"
+    },
+    {
+        "invoice_id": "INV-106",
+        "vendor": "JP MORGAN BANK",
+        "amount": 32124.0,
+        "status": "PAID"
+    },
+    {
+        "invoice_id": "INV-105",
+        "vendor": "JP MORGAN",
+        "amount": 19033.0,
+        "status": "PAID"
+    }
+]
