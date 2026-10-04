@@ -24,7 +24,10 @@ with open('data/homework_invoices.csv', mode = 'r') as file:
         if amountValue > 100000:
             invoice_greater_than_100000+=1
     
-    print("\n----Processing Summary----")    
-    print(f"Total Invoice read from csv file: {total_invoice_count}")
-    print(f"Total Number of invoices greater than 100000: {invoice_greater_than_100000}")
-    print(f"Total Number of invoices missing or Invalid: {total_invoice_missing_invalid}")
+    with open('data/invoice_summary.txt', mode = 'w') as summary_file:
+        summary_file.write("\n----Processing Summary----")
+        summary_file.write(f"Total Invoice read from csv file: {total_invoice_count}")
+        summary_file.write(f"Total Number of invoices greater than 100000: {invoice_greater_than_100000}")
+        summary_file.write(f"Total Number of invoices missing or Invalid: {total_invoice_missing_invalid}")
+
+print("\nSummary successfully saved to 'data/invoice_summary.txt'")
