@@ -1,6 +1,6 @@
 import csv
 
-with open('data/homework_invoices.csv', mode = 'r') as file:
+with open('test_data/homework_invoices.csv', mode = 'r') as file:
     csv_reader = csv.DictReader(file)
     total_invoice_count = 0
     invoice_greater_than_100000 = 0
@@ -24,7 +24,7 @@ with open('data/homework_invoices.csv', mode = 'r') as file:
         if amountValue > 100000:
             invoice_greater_than_100000+=1
     
-    with open('data/invoice_summary.txt', mode = 'w') as summary_file:
+    with open('test_data/invoice_summary.txt', mode = 'w') as summary_file:
         summary_file.write("\n----Processing Summary----")
         summary_file.write(f"Total Invoice read from csv file: {total_invoice_count}")
         summary_file.write(f"Total Number of invoices greater than 100000: {invoice_greater_than_100000}")
