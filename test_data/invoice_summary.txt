@@ -1,2 +1,4 @@
-
-----Processing Summary----Total Invoice read from csv file: 15Total Number of invoices greater than 100000: 9Total Number of invoices missing or Invalid: 2
+----Processing Summary----
+Total Invoice read from csv file: 15
+Total Number of invoices greater than 100000: 7
+Total Number of invoices missing or Invalid: 2
