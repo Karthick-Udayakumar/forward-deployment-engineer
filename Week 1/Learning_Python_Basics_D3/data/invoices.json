@@ -1,0 +1,57 @@
+[
+    {
+        "invoice_number": "INV-2026-001",
+        "vendor": "Acme Corporation",
+        "amount": 1250.50,
+        "currency": "USD",
+        "invoice_date": "2026-10-01",
+        "due_date": "2026-10-31",
+        "status": "Paid",
+        "category": "Office Supplies",
+        "items": [
+            {"description": "Ergonomic Chairs", "quantity": 5, "unit_price": 200.00},
+            {"description": "Wireless Keyboards", "quantity": 10, "unit_price": 25.05}
+        ]
+    },
+    {
+        "invoice_number": "INV-2026-002",
+        "vendor": "TechStart Solutions",
+        "amount": 4200.00,
+        "currency": "USD",
+        "invoice_date": "2026-10-03",
+        "due_date": "2026-11-03",
+        "status": "Pending",
+        "category": "IT Services",
+        "items": [
+            {"description": "Cloud Hosting Subscription", "quantity": 1, "unit_price": 1200.00},
+            {"description": "Software Development Consultations", "quantity": 30, "unit_price": 100.00}
+        ]
+    },
+    {
+        "invoice_number": "INV-2026-003",
+        "vendor": "Global Logistics Inc",
+        "amount": 850.75,
+        "currency": "USD",
+        "invoice_date": "2026-10-05",
+        "due_date": "2026-10-20",
+        "status": "Overdue",
+        "category": "Shipping & Delivery",
+        "items": [
+            {"description": "Freight Shipping charges", "quantity": 1, "unit_price": 850.75}
+        ]
+    },
+    {
+        "invoice_number": "INV-2026-004",
+        "vendor": "Acme Corporation",
+        "amount": 340.00,
+        "currency": "USD",
+        "invoice_date": "2026-10-06",
+        "due_date": "2026-11-06",
+        "status": "Pending",
+        "category": "Office Supplies",
+        "items": [
+            {"description": "Printer Paper Reams", "quantity": 20, "unit_price": 12.00},
+            {"description": "Replacement Ink Cartridges", "quantity": 4, "unit_price": 25.00}
+        ]
+    }
+]
