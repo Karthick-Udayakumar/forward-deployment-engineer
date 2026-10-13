@@ -24,4 +24,4 @@ env/
 .DS_Store
 
 # Raw Data / CSV files (uncomment if your CSV is too large for GitHub)
-# data/*.csv
+# data/*.csv.env
