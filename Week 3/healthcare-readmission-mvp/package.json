@@ -1,0 +1,13 @@
+{
+  "name": "healthcare-readmission-mvp",
+  "version": "1.0.0",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}
