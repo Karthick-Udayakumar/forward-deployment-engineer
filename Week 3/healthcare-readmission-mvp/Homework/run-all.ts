@@ -1,8 +1,8 @@
 // Smoke test for every endpoint in client.ts. For each one it prints the raw response and the UI view.
 //
 // Usage:
-//   node ./api-examples/run-all.ts
-//   node ./api-examples/run-all.ts --write [encounterId] [status] [assignedTo] [notes]
+//   node ./Homework/run-all.ts
+//   node ./Homework/run-all.ts --write [encounterId] [status] [assignedTo] [notes]
 //
 // The PATCH call writes to the database, so it only runs when --write is passed.
 import {
