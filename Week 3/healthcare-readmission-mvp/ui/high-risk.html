@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High-Risk Care Queue</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+    <div class="card" data-testid="high-risk-page">
+        <header class="app-header">
+            <h1><a href="index.html">Diabetes Patient Management</a></h1>
+            <nav class="app-nav" aria-label="Main">
+                <a href="index.html">Home</a>
+                <a href="add-encounter.html">Add Encounter</a>
+                <a href="search.html">Search Patient</a>
+                <a href="high-risk.html">High-Risk Queue</a>
+            </nav>
+        </header>
+
+        <section>
+            <h2>High-Risk Care Queue</h2>
+            <p class="status" id="queue-status" data-testid="queue-status" aria-live="polite"></p>
+            <div class="table-wrap">
+                <table data-testid="queue-table">
+                    <thead>
+                        <tr>
+                            <th>Encounter ID</th>
+                            <th>Patient No</th>
+                            <th>Risk Score</th>
+                            <th>Status</th>
+                            <th>Assigned To</th>
+                            <th>Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queue-body" data-testid="queue-body">
+                        <tr><td colspan="6" class="empty">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pager" data-testid="pager">
+                <div class="pager-controls">
+                    <label for="page-size">Rows per page</label>
+                    <select id="page-size" data-testid="select-page-size">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <button type="button" id="btn-prev" data-testid="btn-prev-page">Previous</button>
+                    <button type="button" id="btn-next" data-testid="btn-next-page">Next</button>
+                </div>
+                <span class="pager-info" id="pager-info" data-testid="pager-info"></span>
+            </div>
+        </section>
+    </div>
+
+    <script type="module">
+        import { configureApiClient, getHighRiskCareQueue, getOperationsSummary, isApiError } from "./js/client.js";
+        import { esc, statusLabel, teamLabel, formatTimestamp, markActiveNav } from "./js/common.js";
+
+        // The page is served by FastAPI, so the API is on the same origin
+        configureApiClient({ baseUrl: window.location.origin });
+        markActiveNav();
+
+        const state = {
+            page: 1,
+            pageSize: 10,
+            total: null, // total HIGH-risk encounters from /operations/summary
+            rows: [],
+        };
+
+        const $ = (id) => document.getElementById(id);
+
+        function renderRows() {
+            if (state.rows.length === 0) {
+                $("queue-body").innerHTML = `<tr><td colspan="6" class="empty">No high-risk encounters on this page.</td></tr>`;
+                return;
+            }
+            $("queue-body").innerHTML = state.rows.map((row) => `
+                <tr data-testid="row-queue-${esc(row.encounter_id)}">
+                    <td><a class="encounter-link" href="intervention.html?encounter_id=${encodeURIComponent(row.encounter_id)}&from=high-risk.html">${esc(row.encounter_id)}</a></td>
+                    <td>${esc(row.patient_nbr)}</td>
+                    <td>${esc(row.risk_score)}</td>
+                    <td>${esc(statusLabel(row.status))}</td>
+                    <td>${esc(teamLabel(row.assigned_to))}</td>
+                    <td>${esc(formatTimestamp(row.updated_at))}</td>
+                </tr>
+            `).join("");
+        }
+
+        function renderPager() {
+            const offset = (state.page - 1) * state.pageSize;
+            const totalPages = state.total !== null ? Math.max(1, Math.ceil(state.total / state.pageSize)) : null;
+            const hasNext = totalPages !== null ? state.page < totalPages : state.rows.length === state.pageSize;
+            const from = state.rows.length ? offset + 1 : 0;
+            const to = offset + state.rows.length;
+
+            $("pager-info").textContent = state.total !== null
+                ? `Showing ${from}–${to} of ${state.total.toLocaleString()} · Page ${state.page} of ${totalPages}`
+                : `Showing ${from}–${to} · Page ${state.page}`;
+            $("btn-prev").disabled = state.page <= 1;
+            $("btn-next").disabled = !hasNext;
+        }
+
+        async function loadPage() {
+            const status = $("queue-status");
+            status.textContent = "Loading…";
+            status.classList.remove("error");
+            $("queue-body").innerHTML = `<tr><td colspan="6" class="empty">Loading…</td></tr>`;
+
+            try {
+                const offset = (state.page - 1) * state.pageSize;
+                const [rows, summary] = await Promise.all([
+                    getHighRiskCareQueue({ limit: state.pageSize, offset }),
+                    getOperationsSummary().catch(() => null), // the total is optional; paging still works without it
+                ]);
+                state.rows = rows;
+                state.total = summary ? summary.high_risk : null;
+
+                // The page was emptied (for example by a shorter data set): step back to the last page with rows
+                if (rows.length === 0 && state.page > 1) {
+                    state.page -= 1;
+                    return loadPage();
+                }
+
+                renderRows();
+                status.textContent = state.total === 0 ? "No high-risk encounters found." : "";
+            } catch (error) {
+                state.rows = [];
+                status.textContent = isApiError(error)
+                    ? `Failed to load the queue: ${error.message}`
+                    : "Failed to load the queue. Please try again.";
+                status.classList.add("error");
+                $("queue-body").innerHTML = `<tr><td colspan="6" class="empty">No results.</td></tr>`;
+            }
+            renderPager();
+        }
+
+        $("page-size").addEventListener("change", (event) => {
+            state.pageSize = Number(event.target.value);
+            state.page = 1;
+            loadPage();
+        });
+        $("btn-prev").addEventListener("click", () => {
+            state.page -= 1;
+            loadPage();
+        });
+        $("btn-next").addEventListener("click", () => {
+            state.page += 1;
+            loadPage();
+        });
+
+        loadPage();
+    </script>
+</body>
+</html>

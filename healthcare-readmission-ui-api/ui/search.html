@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Patient</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+    <div class="card" data-testid="search-page">
+        <header class="app-header">
+            <h1><a href="index.html">Diabetes Patient Management</a></h1>
+            <nav class="app-nav" aria-label="Main">
+                <a href="index.html">Home</a>
+                <a href="add-encounter.html">Add Encounter</a>
+                <a href="search.html">Search Patient</a>
+                <a href="high-risk.html">High-Risk Queue</a>
+            </nav>
+        </header>
+
+        <section>
+            <h2>Search Patient</h2>
+            <form id="search-form" class="form-grid" data-testid="search-form" novalidate style="grid-template-columns: repeat(3, 1fr) auto; align-items: end;">
+                <div>
+                    <label for="patient-nbr">Patient Number</label>
+                    <input id="patient-nbr" type="text" maxlength="50" placeholder="e.g. 8222157" data-testid="input-patient-nbr">
+                </div>
+                <div>
+                    <label for="risk-level">Risk Level</label>
+                    <select id="risk-level" data-testid="select-risk-level">
+                        <option value="">Any</option>
+                        <option value="LOW">LOW</option>
+                        <option value="MEDIUM">MEDIUM</option>
+                        <option value="HIGH">HIGH</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="risk-score">Risk Score</label>
+                    <input id="risk-score" type="number" min="0" max="8" step="1" placeholder="0 to 8" data-testid="input-risk-score">
+                </div>
+                <div>
+                    <button type="submit" id="btn-search" data-testid="btn-search">Search &gt;</button>
+                </div>
+            </form>
+            <p class="status error" id="form-hint" data-testid="form-hint"></p>
+        </section>
+
+        <section>
+            <h2>Results</h2>
+            <p class="status" id="result-status" data-testid="result-status" aria-live="polite"></p>
+            <div class="table-wrap">
+                <table data-testid="results-table">
+                    <thead>
+                        <tr>
+                            <th>Encounter ID</th>
+                            <th>Patient No</th>
+                            <th>Risk Level</th>
+                            <th>Risk Score</th>
+                            <th>Status</th>
+                            <th>Assigned To</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body" data-testid="results-body">
+                        <tr><td colspan="6" class="empty">Enter at least one condition and press Search.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script type="module">
+        import { configureApiClient, searchEncounters, isApiError } from "./js/client.js";
+        import { esc, statusLabel, teamLabel, markActiveNav } from "./js/common.js";
+
+        // The page is served by FastAPI, so the API is on the same origin
+        configureApiClient({ baseUrl: window.location.origin });
+        markActiveNav();
+
+        const PAGE_LIMIT = 100;
+        const $ = (id) => document.getElementById(id);
+
+        function readFilters() {
+            const patientNbr = $("patient-nbr").value.trim();
+            const riskLevel = $("risk-level").value;
+            const scoreText = $("risk-score").value.trim();
+            return {
+                patientNbr: patientNbr === "" ? undefined : patientNbr,
+                riskLevel: riskLevel === "" ? undefined : riskLevel,
+                riskScore: scoreText === "" ? undefined : Number(scoreText),
+            };
+        }
+
+        function renderRows(rows) {
+            if (rows.length === 0) {
+                $("results-body").innerHTML = `<tr><td colspan="6" class="empty" data-testid="no-record">No record found.</td></tr>`;
+                return;
+            }
+            $("results-body").innerHTML = rows.map((row) => `
+                <tr data-testid="row-search-${esc(row.encounter_id)}">
+                    <td><a class="encounter-link" href="intervention.html?encounter_id=${encodeURIComponent(row.encounter_id)}&from=search.html">${esc(row.encounter_id)}</a></td>
+                    <td>${esc(row.patient_nbr)}</td>
+                    <td>${esc(row.risk_level)}</td>
+                    <td>${esc(row.risk_score)}</td>
+                    <td>${esc(statusLabel(row.status))}</td>
+                    <td>${esc(teamLabel(row.assigned_to))}</td>
+                </tr>
+            `).join("");
+        }
+
+        async function runSearch() {
+            const hint = $("form-hint");
+            const status = $("result-status");
+            const button = $("btn-search");
+
+            hint.textContent = "";
+            status.textContent = "Searching…";
+            status.classList.remove("error");
+            button.disabled = true;
+
+            try {
+                const rows = await searchEncounters({ ...readFilters(), limit: PAGE_LIMIT });
+                renderRows(rows);
+                if (rows.length === 0) {
+                    status.textContent = "No record found.";
+                } else if (rows.length === PAGE_LIMIT) {
+                    status.textContent = `Showing the first ${PAGE_LIMIT} records. Narrow the search to see more.`;
+                } else {
+                    status.textContent = `${rows.length} record(s) found.`;
+                }
+            } catch (error) {
+                if (error instanceof TypeError || error instanceof RangeError) {
+                    // Input problems are caught before any request is sent
+                    status.textContent = "";
+                    hint.textContent = error.message;
+                } else {
+                    $("results-body").innerHTML = `<tr><td colspan="6" class="empty">No results.</td></tr>`;
+                    status.textContent = isApiError(error)
+                        ? `Search failed: ${error.message}`
+                        : "Search failed. Please try again.";
+                    status.classList.add("error");
+                }
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        $("search-form").addEventListener("submit", (event) => {
+            event.preventDefault();
+            runSearch();
+        });
+
+        // Pre-fill from the address bar, e.g. search.html?risk_level=HIGH, so searches can be linked
+        const params = new URLSearchParams(window.location.search);
+        if (params.has("patient_nbr")) $("patient-nbr").value = params.get("patient_nbr");
+        if (params.has("risk_level")) $("risk-level").value = params.get("risk_level");
+        if (params.has("risk_score")) $("risk-score").value = params.get("risk_score");
+        if (params.has("patient_nbr") || params.has("risk_level") || params.has("risk_score")) {
+            runSearch();
+        }
+    </script>
+</body>
+</html>

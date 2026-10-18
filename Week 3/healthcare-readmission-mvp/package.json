@@ -2,7 +2,8 @@
   "name": "healthcare-readmission-mvp",
   "version": "1.0.0",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "build:ui": "tsc client.ts --ignoreConfig --outDir ui/js --target ES2022 --module ES2022 --moduleResolution bundler --lib ES2022,DOM --strict --skipLibCheck"
   },
   "type": "module",
   "private": true,

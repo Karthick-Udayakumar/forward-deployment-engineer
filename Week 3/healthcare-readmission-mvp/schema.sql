@@ -15,6 +15,9 @@ CREATE TABLE patient_encounters (
     risk_level VARCHAR(20) DEFAULT 'LOW'
 );
 
+-- Issues IDs for encounters created through the API, e.g. MAN-000001
+CREATE SEQUENCE IF NOT EXISTS manual_encounter_seq START 1;
+
 CREATE TABLE care_interventions (
     intervention_id SERIAL PRIMARY KEY,
     encounter_id VARCHAR(50) REFERENCES patient_encounters(encounter_id),

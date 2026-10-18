@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diabetes Patient Management System</title>
+    
+    <style>
+        /* ----------------------------------------------------
+           1. CSS RESET & VARS
+        ---------------------------------------------------- */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --color-primary: #0284c7;
+            --color-primary-hover: #0369a1;
+            --color-primary-focus: rgba(2, 132, 199, 0.25);
+            --color-bg-app: #f8fafc;
+            --color-bg-surface: #ffffff;
+            --color-bg-subtle: #f1f5f9;
+            --color-text-primary: #0f172a;
+            --color-text-secondary: #475569;
+            --color-text-muted: #94a3b8;
+            --color-border: #cbd5e1;
+            --color-border-hover: #94a3b8;
+            --color-danger: #e11d48;
+            --color-danger-bg: #fff1f2;
+            
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--color-bg-app);
+            color: var(--color-text-primary);
+            line-height: 1.5;
+            padding: 24px;
+            min-height: 100vh;
+        }
+
+        /* ----------------------------------------------------
+           2. FULL-WIDTH RESPONSIVE CONTAINER
+        ---------------------------------------------------- */
+        .app-card {
+            width: 100%;
+            max-width: 1280px; /* Expanded max-width to eliminate side whitespace */
+            margin: 0 auto;    /* Centers standard desktop layout smoothly */
+            background-color: var(--color-bg-surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: #ffffff;
+            padding: 24px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .app-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .system-status {
+            font-size: 0.85rem;
+            background: rgba(255, 255, 255, 0.18);
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        /* ----------------------------------------------------
+           3. DASHBOARD SUMMARY STATS
+        ---------------------------------------------------- */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 24px 32px 8px 32px;
+        }
+
+        .metric-card {
+            background-color: var(--color-bg-subtle);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: 20px;
+        }
+
+        .metric-card .title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--color-text-secondary);
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-top: 4px;
+        }
+
+        /* ----------------------------------------------------
+           4. ADAPTIVE FORM GRID
+        ---------------------------------------------------- */
+        main {
+            padding: 24px 32px 32px 32px;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: 20px;
+        }
+
+        /* Responsive 3-column grid on large screens, 2 on medium, 1 on small */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .form-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-field label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: 6px;
+        }
+
+        /* Control Heights and Alignment */
+        .input-control,
+        .select-wrapper select {
+            width: 100%;
+            height: 42px;
+            padding: 0 14px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            color: var(--color-text-primary);
+            background-color: var(--color-bg-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-sm);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .input-control:hover,
+        .select-wrapper select:hover {
+            border-color: var(--color-border-hover);
+        }
+
+        .input-control:focus,
+        .select-wrapper select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-primary-focus);
+        }
+
+        .select-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .select-wrapper select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding-right: 40px;
+            cursor: pointer;
+        }
+
+        .select-wrapper::after {
+            content: "";
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 6px;
+            background-color: var(--color-text-secondary);
+            clip-path: polygon(0 0, 100% 0, 50% 100%);
+            pointer-events: none;
+        }
+
+        .form-actions {
+            grid-column: 1 / -1; /* Spans across all available grid columns */
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .btn-submit {
+            background-color: var(--color-primary);
+            color: #ffffff;
+            border: none;
+            height: 44px;
+            padding: 0 28px;
+            border-radius: var(--radius-sm);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--shadow-sm);
+            transition: background-color 0.15s ease;
+        }
+
+        .btn-submit:hover {
+            background-color: var(--color-primary-hover);
+        }
+
+        /* ----------------------------------------------------
+           5. DATA TABLE DESIGN
+        ---------------------------------------------------- */
+        .table-section {
+            margin-top: 36px;
+            border-top: 1px solid var(--color-border);
+            padding-top: 28px;
+        }
+
+        .table-wrapper {
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            overflow-x: auto;
+            box-shadow: var(--shadow-sm);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+
+        thead {
+            background-color: var(--color-bg-subtle);
+        }
+
+        th {
+            padding: 14px 18px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--color-text-secondary);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        td {
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text-primary);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #f1f5f9;
+        }
+
+        .badge-tag {
+            background-color: #e0f2fe;
+            color: #0369a1;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .btn-action-delete {
+            background: transparent;
+            border: none;
+            color: var(--color-danger);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-action-delete:hover {
+            background-color: var(--color-danger-bg);
+        }
+
+        .empty-row td {
+            text-align: center;
+            color: var(--color-text-muted);
+            padding: 32px;
+        }
+
+        /* Desktop: fit the page to the window. The records table scrolls inside its own box;
+           the header, KPIs, form and headings stay visible. Phones keep the normal page flow. */
+        @media (min-width: 641px) {
+            body {
+                box-sizing: border-box;
+                height: 100vh;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                padding: 16px;
+            }
+
+            .app-card {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .app-header {
+                padding: 14px 32px;
+            }
+
+            .metrics-grid {
+                padding: 12px 32px 0 32px;
+                gap: 16px;
+            }
+
+            .metric-card {
+                padding: 10px 16px;
+            }
+
+            .metric-card .value {
+                font-size: 1.4rem;
+            }
+
+            main {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+                padding: 16px 32px 16px 32px;
+            }
+
+            #encounter-section {
+                position: relative;
+            }
+
+            .section-title {
+                margin-bottom: 12px;
+            }
+
+            .form-grid {
+                gap: 12px 24px;
+            }
+
+            #encounter-form .input-control,
+            #encounter-form select {
+                height: 36px;
+            }
+
+            /* Add Record moves up beside the "Add Patient Encounter" heading, freeing a whole form row */
+            .form-actions {
+                position: absolute;
+                top: 0;
+                right: 0;
+                margin: 0;
+            }
+
+            .table-section {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+                margin-top: 16px;
+                padding-top: 16px;
+            }
+
+            .table-wrapper {
+                flex: none;
+                height: clamp(160px, calc(100vh - 520px), 600px); /* replaced by fitRecordsTable() */
+                overflow-y: scroll;
+                overflow-x: auto;
+                scrollbar-width: thin;
+                scrollbar-color: #94a3b8 #e2e8f0;
+            }
+
+            .table-wrapper::-webkit-scrollbar {
+                width: 10px;
+            }
+
+            .table-wrapper::-webkit-scrollbar-track {
+                background: #e2e8f0;
+            }
+
+            .table-wrapper::-webkit-scrollbar-thumb {
+                background: #94a3b8;
+                border-radius: 5px;
+            }
+
+            .table-wrapper th {
+                position: sticky;
+                top: 0;
+                z-index: 1;
+                background-color: var(--color-bg-subtle);
+            }
+
+            .table-wrapper th,
+            .table-wrapper td {
+                padding: 6px 14px;
+            }
+        }
+
+        /* Breakpoints for Medium / Small Screens */
+        @media (max-width: 1024px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 12px;
+            }
+            main, .metrics-grid, .app-header {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-card">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <h1>Diabetes Patient Management</h1>
+            <span class="system-status">System Active</span>
+        </header>
+
+        <!-- KPI Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="title">Total Encounters</div>
+                <div class="value" id="kpi-total">2</div>
+            </div>
+            <div class="metric-card">
+                <div class="title">Avg Hospital Stay</div>
+                <div class="value" id="kpi-avg">4.0 days</div>
+            </div>
+        </div>
+
+        <main>
+            <!-- Form Section -->
+            <section id="encounter-section" aria-labelledby="form-heading">
+                <h2 id="form-heading" class="section-title">Add Patient Encounter</h2>
+
+                <form id="encounter-form" novalidate>
+                    <div class="form-grid">
+                        
+                        <div class="form-field">
+                            <label for="patient-number">Patient ID Number</label>
+                            <input class="input-control" type="text" id="patient-number" required placeholder="e.g. PAT-9081">
+                        </div>
+
+                        <div class="form-field">
+                            <label for="age-group">Age Bracket</label>
+                            <div class="select-wrapper">
+                                <select id="age-group" required>
+                                    <option value="" disabled selected>Select age group...</option>
+                                    <option value="[0-10)">[0-10) years</option>
+                                    <option value="[10-20)">[10-20) years</option>
+                                    <option value="[20-30)">[20-30) years</option>
+                                    <option value="[30-40)">[30-40) years</option>
+                                    <option value="[40-50)">[40-50) years</option>
+                                    <option value="[50-60)">[50-60) years</option>
+                                    <option value="[60-70)">[60-70) years</option>
+                                    <option value="[70-80)">[70-80) years</option>
+                                    <option value="[80-90)">[80-90) years</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="time-hospital">Time in Hospital (days)</label>
+                            <input class="input-control" type="number" id="time-hospital" min="0" required placeholder="e.g. 3">
+                        </div>
+
+                        <div class="form-field">
+                            <label for="inpatient-visits">Inpatient Visits</label>
+                            <input class="input-control" type="number" id="inpatient-visits" min="0" required placeholder="e.g. 1">
+                        </div>
+
+                        <div class="form-field">
+                            <label for="emergency-visits">Emergency Visits</label>
+                            <input class="input-control" type="number" id="emergency-visits" min="0" required placeholder="e.g. 0">
+                        </div>
+
+                        <div class="form-field">
+                            <label for="medications">Prescribed Medications</label>
+                            <input class="input-control" type="text" id="medications" placeholder="e.g. Metformin, Insulin" required>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-submit">
+                                <span>Add Record</span>
+                                &#10140;
+                            </button>
+                        </div>
+
+                    </div>
+                </form>
+            </section>
+
+            <!-- Table Section -->
+            <section class="table-section" id="records-section" aria-labelledby="records-heading">
+                <h2 id="records-heading" class="section-title">Patient Encounter Records</h2>
+                
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Patient ID</th>
+                                <th>Age Bracket</th>
+                                <th>Hospital Stay</th>
+                                <th>Medications</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="records-table-body">
+                            <tr data-id="1" data-stay="3">
+                                <td><strong>PAT-10482</strong></td>
+                                <td><span class="badge-tag">[50-60)</span></td>
+                                <td>3 days</td>
+                                <td>Metformin, Insulin</td>
+                                <td style="text-align: right;"><button class="btn-action-delete" onclick="handleDelete(this)">Delete</button></td>
+                            </tr>
+                            <tr data-id="2" data-stay="5">
+                                <td><strong>PAT-20948</strong></td>
+                                <td><span class="badge-tag">[60-70)</span></td>
+                                <td>5 days</td>
+                                <td>Glipizide</td>
+                                <td style="text-align: right;"><button class="btn-action-delete" onclick="handleDelete(this)">Delete</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            const form = document.getElementById('encounter-form');
+            const tableBody = document.getElementById('records-table-body');
+            const kpiTotal = document.getElementById('kpi-total');
+            const kpiAvg = document.getElementById('kpi-avg');
+
+            function escapeHTML(str) {
+                return str.replace(/[&<>'"]/g, 
+                    tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+                );
+            }
+
+            function syncMetrics() {
+                const rows = tableBody.querySelectorAll('tr:not(.empty-row)');
+                const count = rows.length;
+                kpiTotal.textContent = count;
+
+                if (count === 0) {
+                    kpiAvg.textContent = '0 days';
+                    if (!tableBody.querySelector('.empty-row')) {
+                        tableBody.innerHTML = `<tr class="empty-row"><td colspan="5">No patient encounters available. Use form above to add entries.</td></tr>`;
+                    }
+                    return;
+                }
+
+                let totalDays = 0;
+                rows.forEach(row => {
+                    totalDays += parseFloat(row.getAttribute('data-stay') || 0);
+                });
+
+                kpiAvg.textContent = (totalDays / count).toFixed(1) + ' days';
+            }
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const patientNumber = document.getElementById('patient-number').value.trim();
+                const ageGroup = document.getElementById('age-group').value;
+                const hospitalDays = parseFloat(document.getElementById('time-hospital').value);
+                const medications = document.getElementById('medications').value.trim();
+
+                if (!patientNumber || !ageGroup || isNaN(hospitalDays) || !medications) {
+                    alert('Please complete all required fields correctly.');
+                    return;
+                }
+
+                const emptyRow = tableBody.querySelector('.empty-row');
+                if (emptyRow) emptyRow.remove();
+
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-stay', hospitalDays);
+                tr.innerHTML = `
+                    <td><strong>${escapeHTML(patientNumber)}</strong></td>
+                    <td><span class="badge-tag">${escapeHTML(ageGroup)}</span></td>
+                    <td>${hospitalDays} days</td>
+                    <td>${escapeHTML(medications)}</td>
+                    <td style="text-align: right;"><button class="btn-action-delete" onclick="handleDelete(this)">Delete</button></td>
+                `;
+
+                tableBody.insertBefore(tr, tableBody.firstChild);
+                form.reset();
+                syncMetrics();
+            });
+
+            window.handleDelete = function (btn) {
+                const row = btn.closest('tr');
+                if (row) {
+                    row.remove();
+                    syncMetrics();
+                }
+            };
+
+            syncMetrics();
+        })();
+    </script>
+    <script>
+        // Desktop only: size the records table box to fill the space left under it, so its rows scroll inside.
+        // Phones keep the table at its natural height and the page scrolls normally.
+        (function () {
+            function fitRecordsTable() {
+                const wrap = document.querySelector('.table-wrapper');
+                const main = document.querySelector('main');
+                if (!wrap || !main) return;
+
+                if (!window.matchMedia('(min-width: 641px)').matches) {
+                    wrap.style.height = '';
+                    return;
+                }
+
+                // Space below the table: main's bottom padding + body padding + card border
+                const bottomGap =
+                    parseFloat(getComputedStyle(main).paddingBottom) +
+                    parseFloat(getComputedStyle(document.body).paddingBottom) + 2;
+                const free = window.innerHeight - wrap.getBoundingClientRect().bottom - bottomGap;
+                const current = wrap.getBoundingClientRect().height;
+                wrap.style.height = `${Math.max(160, Math.floor(current + free))}px`;
+            }
+
+            window.addEventListener('load', fitRecordsTable);
+            window.addEventListener('resize', fitRecordsTable);
+            fitRecordsTable();
+        })();
+    </script>
+</body>
+</html>

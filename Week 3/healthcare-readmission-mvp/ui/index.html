@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - Recent Encounters</title>
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        /* Desktop: the page fits the window; only the table rows scroll, inside their own box */
+        @media (min-width: 1025px) {
+            html, body {
+                height: 100%;
+            }
+
+            body {
+                box-sizing: border-box;
+                height: 100vh;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .card {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+
+            #records-section {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .table-wrap {
+                flex: none;
+                height: clamp(160px, calc(100vh - 360px), 600px); /* replaced by fitTableHeight() */
+                overflow-y: scroll;
+                scrollbar-width: thin;
+                scrollbar-color: #94a3b8 #e2e8f0;
+            }
+
+            .table-wrap::-webkit-scrollbar {
+                width: 10px;
+            }
+
+            .table-wrap::-webkit-scrollbar-track {
+                background: #e2e8f0;
+            }
+
+            .table-wrap::-webkit-scrollbar-thumb {
+                background: #94a3b8;
+                border-radius: 5px;
+            }
+
+            .table-wrap th {
+                position: sticky;
+                top: 0;
+                z-index: 1;
+            }
+
+            .section-actions .scroll-only {
+                display: inline-flex;
+            }
+        }
+
+        .scroll-only {
+            display: none;
+        }
+
+        /* Sort buttons look like the header text, but are real buttons for keyboard and screen-reader users */
+        .sort-button {
+            height: auto;
+            padding: 0;
+            border: none;
+            background: none;
+            color: inherit;
+            font: inherit;
+            font-size: inherit;
+            font-weight: inherit;
+            text-transform: inherit;
+            letter-spacing: inherit;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .sort-button:hover:not(:disabled) {
+            background: none;
+            text-decoration: underline;
+        }
+
+        .sort-button:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        /* Same height, text and alignment for every button in the heading row */
+        .section-actions button {
+            min-width: 96px;
+            height: 36px;
+            padding: 0 14px;
+            font-size: 0.85rem;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Fixed column widths give the table an even, aligned grid */
+        table {
+            table-layout: fixed;
+        }
+
+        th, td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .saved-message {
+            color: var(--success);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="card" data-testid="home-page">
+        <header class="app-header">
+            <h1><a href="index.html">Diabetes Patient Management</a></h1>
+            <nav class="app-nav" aria-label="Main">
+                <a href="index.html" aria-current="page">Home</a>
+                <a href="add-encounter.html">Add Encounter</a>
+                <a href="search.html">Search Patient</a>
+                <a href="high-risk.html">High-Risk Queue</a>
+            </nav>
+        </header>
+
+        <section id="records-section">
+            <div class="section-head">
+                <h2>Recent Encounters</h2>
+                <div class="section-actions">
+                    <button type="button" class="secondary scroll-only" id="btn-scroll-up" data-testid="btn-scroll-up" aria-label="Scroll table up">Up</button>
+                    <button type="button" class="secondary scroll-only" id="btn-scroll-down" data-testid="btn-scroll-down" aria-label="Scroll table down">Down</button>
+                    <button type="button" class="secondary" id="btn-refresh" data-testid="btn-refresh">Refresh Data</button>
+                </div>
+            </div>
+            <p class="status" id="list-status" data-testid="list-status" aria-live="polite"></p>
+
+            <div class="table-wrap" data-testid="table-wrap">
+                <table data-testid="encounters-table">
+                    <colgroup>
+                        <col style="width: 16%">
+                        <col style="width: 16%">
+                        <col style="width: 14%">
+                        <col style="width: 16%">
+                        <col style="width: 20%">
+                        <col style="width: 18%">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="encounter_id"><button type="button" class="sort-button">Encounter ID<span class="sort-indicator" aria-hidden="true"></span></button></th>
+                            <th class="sortable" data-sort="patient_nbr"><button type="button" class="sort-button">Patient ID<span class="sort-indicator" aria-hidden="true"></span></button></th>
+                            <th class="sortable" data-sort="age"><button type="button" class="sort-button">Age Group<span class="sort-indicator" aria-hidden="true"></span></button></th>
+                            <th class="sortable" data-sort="time_in_hospital"><button type="button" class="sort-button">Hospital Days<span class="sort-indicator" aria-hidden="true"></span></button></th>
+                            <th class="sortable" data-sort="num_medications"><button type="button" class="sort-button">Medications (count)<span class="sort-indicator" aria-hidden="true"></span></button></th>
+                            <th class="sortable" data-sort="risk_level"><button type="button" class="sort-button">Risk Level<span class="sort-indicator" aria-hidden="true"></span></button></th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" data-testid="table-body">
+                        <tr><td colspan="6" class="empty">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pager" data-testid="pager">
+                <div class="pager-controls">
+                    <label for="page-size">Rows per page</label>
+                    <select id="page-size" data-testid="select-page-size">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <button type="button" id="btn-prev" data-testid="btn-prev-page">Previous</button>
+                    <button type="button" id="btn-next" data-testid="btn-next-page">Next</button>
+                </div>
+                <span class="pager-info" id="pager-info" data-testid="pager-info"></span>
+            </div>
+        </section>
+    </div>
+
+    <script type="module">
+        import { configureApiClient, listEncounters, getOperationsSummary, isApiError } from "./js/client.js";
+        import { esc, markActiveNav } from "./js/common.js";
+
+        // The page is served by FastAPI, so the API is on the same origin
+        configureApiClient({ baseUrl: window.location.origin });
+        markActiveNav("index.html");
+
+        const $ = (id) => document.getElementById(id);
+
+        // Sorting uses a numeric value per column. Age buckets like "[10-20)" sort by their lower bound.
+        const RISK_RANK = { LOW: 0, MEDIUM: 1, HIGH: 2 };
+        const SORT_VALUE = {
+            encounter_id: (r) => Number(r.encounter_id),
+            patient_nbr: (r) => Number(r.patient_nbr),
+            age: (r) => Number((r.age || "").match(/\d+/)?.[0]),
+            time_in_hospital: (r) => Number(r.time_in_hospital),
+            num_medications: (r) => Number(r.num_medications),
+            risk_level: (r) => RISK_RANK[r.risk_level] ?? NaN,
+        };
+
+        // Pagination is server-side (limit and offset). Sorting is client-side and covers the current page only.
+        const state = {
+            page: 1,
+            pageSize: 10,
+            total: null, // total encounters from /operations/summary; null if that call fails
+            rows: [],
+            sortKey: null,
+            sortDir: "asc",
+        };
+
+        function compareRows(a, b) {
+            const x = SORT_VALUE[state.sortKey](a);
+            const y = SORT_VALUE[state.sortKey](b);
+            // Missing values always go last, whichever direction is chosen
+            if (Number.isNaN(x) && Number.isNaN(y)) return 0;
+            if (Number.isNaN(x)) return 1;
+            if (Number.isNaN(y)) return -1;
+            return state.sortDir === "asc" ? x - y : y - x;
+        }
+
+        function renderTable() {
+            const body = $("table-body");
+            if (state.rows.length === 0) {
+                body.innerHTML = `<tr><td colspan="6" class="empty" data-testid="no-records">No encounters found in the database.</td></tr>`;
+            } else {
+                const rows = state.sortKey ? [...state.rows].sort(compareRows) : state.rows;
+                body.innerHTML = rows.map((row) => `
+                    <tr data-testid="row-encounter-${esc(row.encounter_id)}">
+                        <td><a class="encounter-link" href="intervention.html?encounter_id=${encodeURIComponent(row.encounter_id)}&from=index.html">${esc(row.encounter_id)}</a></td>
+                        <td>${esc(row.patient_nbr)}</td>
+                        <td>${esc(row.age ?? "N/A")}</td>
+                        <td>${esc(row.time_in_hospital ?? "N/A")}</td>
+                        <td>${esc(row.num_medications ?? "N/A")}</td>
+                        <td>${esc(row.risk_level ?? "N/A")}</td>
+                    </tr>
+                `).join("");
+            }
+            renderSortIndicators();
+            renderPager();
+            updateScrollButtons();
+        }
+
+        function renderSortIndicators() {
+            document.querySelectorAll("th[data-sort]").forEach((th) => {
+                const active = th.dataset.sort === state.sortKey;
+                const ascending = active && state.sortDir === "asc";
+                th.setAttribute("aria-sort", active ? (ascending ? "ascending" : "descending") : "none");
+                th.querySelector(".sort-indicator").textContent = active ? (ascending ? "▲" : "▼") : "⇅";
+            });
+        }
+
+        function renderPager() {
+            const offset = (state.page - 1) * state.pageSize;
+            const totalPages = state.total !== null ? Math.max(1, Math.ceil(state.total / state.pageSize)) : null;
+            const hasNext = totalPages !== null ? state.page < totalPages : state.rows.length === state.pageSize;
+            const from = state.rows.length ? offset + 1 : 0;
+            const to = offset + state.rows.length;
+
+            $("pager-info").textContent = state.total !== null
+                ? `Showing ${from}–${to} of ${state.total.toLocaleString()} · Page ${state.page} of ${totalPages}`
+                : `Showing ${from}–${to} · Page ${state.page}`;
+            $("btn-prev").disabled = state.page <= 1;
+            $("btn-next").disabled = !hasNext;
+        }
+
+        async function loadPage() {
+            const status = $("list-status");
+            status.classList.remove("error");
+            status.textContent = "Loading…";
+
+            try {
+                const offset = (state.page - 1) * state.pageSize;
+                const [rows, summary] = await Promise.all([
+                    listEncounters({ limit: state.pageSize, offset }),
+                    getOperationsSummary().catch(() => null), // the total is optional; paging still works without it
+                ]);
+                state.rows = rows;
+                state.total = summary ? summary.total_encounters : null;
+
+                // If the current page is now past the end, step back to the last page that has rows
+                if (rows.length === 0 && state.page > 1) {
+                    state.page -= 1;
+                    return loadPage();
+                }
+
+                renderTable();
+                status.textContent = "";
+            } catch (error) {
+                state.rows = [];
+                status.textContent = isApiError(error)
+                    ? `Failed to load encounters: ${error.message}`
+                    : "Failed to load encounters. Please ensure the server is running.";
+                status.classList.add("error");
+                $("table-body").innerHTML = `<tr><td colspan="6" class="empty">No results.</td></tr>`;
+                renderPager();
+            }
+        }
+
+        // Desktop only: size the table box to fill the space left under the heading, so the rows scroll inside it
+        function fitTableHeight() {
+            const wrap = document.querySelector(".table-wrap");
+            const pager = document.querySelector(".pager");
+            if (!wrap || !pager) return;
+            if (!window.matchMedia("(min-width: 1025px)").matches) {
+                wrap.style.height = "";
+                return;
+            }
+            // Space below the pager: section padding + body padding + card border
+            const bottomGap = 20 + 16 + 2;
+            const free = window.innerHeight - pager.getBoundingClientRect().bottom - bottomGap;
+            const current = wrap.getBoundingClientRect().height;
+            wrap.style.height = `${Math.max(160, Math.floor(current + free))}px`;
+        }
+
+        function scrollTable(direction) {
+            const wrap = document.querySelector(".table-wrap");
+            wrap.scrollBy({ top: direction * wrap.clientHeight * 0.8, behavior: "auto" });
+            updateScrollButtons();
+        }
+
+        function updateScrollButtons() {
+            const wrap = document.querySelector(".table-wrap");
+            const atTop = wrap.scrollTop <= 0;
+            const atBottom = wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 1;
+            $("btn-scroll-up").disabled = atTop;
+            $("btn-scroll-down").disabled = atBottom;
+        }
+
+        // Sorting: click a header to sort ascending, click again to reverse
+        document.querySelectorAll("th[data-sort] .sort-button").forEach((button) => {
+            button.addEventListener("click", () => {
+                const key = button.closest("th").dataset.sort;
+                if (state.sortKey === key) {
+                    state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+                } else {
+                    state.sortKey = key;
+                    state.sortDir = "asc";
+                }
+                renderTable();
+            });
+        });
+
+        $("page-size").addEventListener("change", (event) => {
+            state.pageSize = Number(event.target.value);
+            state.page = 1;
+            loadPage();
+        });
+        $("btn-prev").addEventListener("click", () => {
+            state.page -= 1;
+            loadPage();
+        });
+        $("btn-next").addEventListener("click", () => {
+            state.page += 1;
+            loadPage();
+        });
+        $("btn-refresh").addEventListener("click", loadPage);
+        $("btn-scroll-up").addEventListener("click", () => scrollTable(-1));
+        $("btn-scroll-down").addEventListener("click", () => scrollTable(1));
+        document.querySelector(".table-wrap").addEventListener("scroll", updateScrollButtons);
+        window.addEventListener("resize", () => {
+            fitTableHeight();
+            updateScrollButtons();
+        });
+
+        // After a save, the Add Encounter page returns here with ?saved=<encounter_id>
+        // Shown after the list loads, because loading clears the status line
+        const savedId = new URLSearchParams(window.location.search).get("saved");
+        history.replaceState(null, "", "index.html");
+
+        loadPage().then(() => {
+            if (savedId) {
+                $("list-status").innerHTML = `<span class="saved-message">Encounter ${esc(savedId)} saved.</span>`;
+            }
+            fitTableHeight();
+        });
+    </script>
+</body>
+</html>

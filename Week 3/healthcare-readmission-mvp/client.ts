@@ -197,7 +197,7 @@ function assertInterventionStatus(status: string): asserts status is Interventio
 // ---------------------------------------------------------------------------
 
 interface RequestSpec {
-  method: "GET" | "PATCH";
+  method: "GET" | "POST" | "PATCH";
   path: string;
   query?: Record<string, string | number>;
   body?: unknown;
@@ -345,6 +345,118 @@ export async function updateIntervention(
   });
 }
 
+export interface InterventionDetail {
+  encounter_id: string;
+  patient_nbr: string;
+  /** 30-day outcome: NO, <30 or >30. Null until the follow-up is recorded. */
+  readmitted: ReadmissionValue | null;
+  /** Null until the first update creates the intervention. */
+  status: InterventionStatus | null;
+  assigned_to: string | null;
+  notes: string | null;
+  updated_at: string | null;
+}
+
+/** GET /interventions/{encounter_id} : the encounter's current intervention. Rejects with status 404 if the encounter does not exist. */
+export async function getIntervention(encounterId: string, options?: RequestOptions): Promise<InterventionDetail> {
+  assertEncounterId(encounterId);
+  return request<InterventionDetail>({
+    method: "GET",
+    path: `/interventions/${encodeURIComponent(encounterId)}`,
+    options,
+  });
+}
+
+// Age brackets used in the dataset
+export type AgeBracket =
+  | "[0-10)" | "[10-20)" | "[20-30)" | "[30-40)" | "[40-50)"
+  | "[50-60)" | "[60-70)" | "[70-80)" | "[80-90)" | "[90-100)";
+
+/** Fields a client sends to create an encounter. encounter_id, risk_score and risk_level are set by the server. */
+export interface EncounterCreate {
+  // Mandatory: patient number plus the five inputs the risk score uses
+  patient_nbr: string;
+  time_in_hospital: number;
+  number_inpatient: number;
+  number_emergency: number;
+  number_outpatient: number;
+  num_medications: number;
+  // Optional
+  age?: AgeBracket | null;
+  num_lab_procedures?: number | null;
+  admission_type_id?: number | null;
+  discharge_disposition_id?: number | null;
+}
+
+/**
+ * POST /encounters : creates an encounter and returns the saved row, including the generated encounter_id
+ * and the calculated risk. Rejects with status 422 if the server finds a value invalid.
+ */
+export async function createEncounter(input: EncounterCreate, options?: RequestOptions): Promise<Encounter> {
+  if (typeof input.patient_nbr !== "string" || input.patient_nbr.trim() === "") {
+    throw new TypeError("patient_nbr must be a non-empty string");
+  }
+  const counts: [string, number][] = [
+    ["time_in_hospital", input.time_in_hospital],
+    ["number_inpatient", input.number_inpatient],
+    ["number_emergency", input.number_emergency],
+    ["number_outpatient", input.number_outpatient],
+    ["num_medications", input.num_medications],
+  ];
+  for (const [name, value] of counts) {
+    if (!Number.isInteger(value) || value < 0) {
+      throw new RangeError(`${name} must be a whole number of zero or more`);
+    }
+  }
+  return request<Encounter>({
+    method: "POST",
+    path: "/encounters",
+    body: input,
+    options,
+  });
+}
+
+export type ReadmissionValue = "NO" | "<30" | ">30";
+
+export interface ReadmissionUpdateInput {
+  readmitted: ReadmissionValue;
+  /** Required to change a value that is already set. */
+  overwrite?: boolean;
+}
+
+/**
+ * PATCH /encounters/{encounter_id} : records the 30-day outcome. Does not change the risk score.
+ * Rejects with status 409 if the value is already set and overwrite is not true.
+ */
+export async function updateReadmission(
+  encounterId: string,
+  input: ReadmissionUpdateInput,
+  options?: RequestOptions,
+): Promise<Encounter> {
+  assertEncounterId(encounterId);
+  return request<Encounter>({
+    method: "PATCH",
+    path: `/encounters/${encodeURIComponent(encounterId)}`,
+    body: { readmitted: input.readmitted, overwrite: input.overwrite ?? false },
+    options,
+  });
+}
+
+export interface CodeOption {
+  code: number;
+  label: string;
+}
+
+export interface ReferenceCodes {
+  admission_type_id: CodeOption[];
+  discharge_disposition_id: CodeOption[];
+}
+
+/** GET /reference/codes : code lists for the admission and discharge dropdowns. */
+export async function getReferenceCodes(options?: RequestOptions): Promise<ReferenceCodes> {
+  return request<ReferenceCodes>({ method: "GET", path: "/reference/codes", options });
+}
+
 /** GET /operations/summary : workload and queue counts. */
 export async function getOperationsSummary(options?: RequestOptions): Promise<OperationsSummary> {
   return request<OperationsSummary>({ method: "GET", path: "/operations/summary", options });
@@ -358,4 +470,52 @@ export async function getReadmissionAnalysis(options?: RequestOptions): Promise<
 /** GET /management/dashboard : operations summary and clinical validation together. */
 export async function getManagementDashboard(options?: RequestOptions): Promise<ManagementDashboard> {
   return request<ManagementDashboard>({ method: "GET", path: "/management/dashboard", options });
+}
+
+// ---------------------------------------------------------------------------
+// Patient search
+// ---------------------------------------------------------------------------
+
+const RISK_LEVELS: readonly RiskLevel[] = ["LOW", "MEDIUM", "HIGH"];
+const MAX_RISK_SCORE = 8; // the risk rule in service.py adds up to 8 points
+
+export interface EncounterSearchParams extends PaginationParams {
+  /** Patient number (patient_nbr). Returns every encounter for that patient. */
+  patientNbr?: string;
+  riskLevel?: RiskLevel;
+  /** Exact risk score, 0 to 8. */
+  riskScore?: number;
+}
+
+/**
+ * GET /encounters/search : encounters matching every filter given (AND). Filters left out are ignored.
+ * Returns an empty array when nothing matches, so the UI can show "No record found".
+ * Rejects before sending a request when no filter is given or a value is out of range.
+ */
+export async function searchEncounters(
+  params: EncounterSearchParams,
+  options?: RequestOptions,
+): Promise<CareQueueItem[]> {
+  const { patientNbr, riskLevel, riskScore } = params;
+
+  if (patientNbr === undefined && riskLevel === undefined && riskScore === undefined) {
+    throw new TypeError("Provide at least one of patientNbr, riskLevel or riskScore");
+  }
+  if (patientNbr !== undefined && patientNbr.trim() === "") {
+    throw new TypeError("patientNbr must not be empty");
+  }
+  if (riskLevel !== undefined && !RISK_LEVELS.includes(riskLevel)) {
+    throw new TypeError(`riskLevel must be one of: ${RISK_LEVELS.join(", ")}`);
+  }
+  if (riskScore !== undefined && (!Number.isInteger(riskScore) || riskScore < 0 || riskScore > MAX_RISK_SCORE)) {
+    throw new RangeError(`riskScore must be an integer between 0 and ${MAX_RISK_SCORE}`);
+  }
+
+  const { limit, offset } = assertPagination(params);
+  const query: Record<string, string | number> = { limit, offset };
+  if (patientNbr !== undefined) query.patient_nbr = patientNbr;
+  if (riskLevel !== undefined) query.risk_level = riskLevel;
+  if (riskScore !== undefined) query.risk_score = riskScore;
+
+  return request<CareQueueItem[]>({ method: "GET", path: "/encounters/search", query, options });
 }

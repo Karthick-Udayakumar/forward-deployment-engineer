@@ -1,0 +1,27 @@
+# Environment variables & secrets (CRITICAL for security)
+.env
+
+# Python bytecode and caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Local Virtual Environments
+fdevirtualenvironment/
+venv/
+.venv/
+env/
+
+# IDE / Editor specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS System Files (since you are on a Mac)
+.DS_Store
+
+# Raw Data / CSV files (uncomment if your CSV is too large for GitHub)
+# data/*.csv.env

@@ -14,6 +14,7 @@ import {
   getOperationsSummary,
   getReadmissionAnalysis,
   getManagementDashboard,
+  searchEncounters,
   isApiError,
   INTERVENTION_STATUSES,
   type Encounter,
@@ -189,6 +190,14 @@ async function main() {
 
   await step("08 Management dashboard", () => getManagementDashboard(), (d) =>
     logJson({ operations: toCards(d.operations), clinicalValidation: toValidationPanel(d.clinical_validation) }),
+  );
+
+  await step("09 Search encounters (risk level HIGH, first 5)", () => searchEncounters({ riskLevel: "HIGH", limit: 5 }), (rows) =>
+    console.table(rows.map(toQueueRow)),
+  );
+
+  await step("10 Search encounters (no match)", () => searchEncounters({ patientNbr: "NO-SUCH-PATIENT" }), (rows) =>
+    console.log(rows.length === 0 ? "No record found" : `${rows.length} record(s) found`),
   );
 
   console.log(`\nDone. ${failures} failure(s).`);

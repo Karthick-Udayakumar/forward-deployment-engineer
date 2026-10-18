@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Intervention</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+    <div class="card" data-testid="intervention-page">
+        <header class="app-header">
+            <h1><a href="index.html">Diabetes Patient Management</a></h1>
+            <nav class="app-nav" aria-label="Main">
+                <a href="index.html">Home</a>
+                <a href="add-encounter.html">Add Encounter</a>
+                <a href="search.html">Search Patient</a>
+                <a href="high-risk.html">High-Risk Queue</a>
+            </nav>
+        </header>
+
+        <section>
+            <a class="back" id="back-link" href="high-risk.html" data-testid="back-link">&lsaquo; Back to High-Risk Queue</a>
+            <h2>Update Intervention</h2>
+            <form id="intervention-form" class="form-grid" data-testid="intervention-form" novalidate>
+                <div>
+                    <label for="encounter-id">Encounter ID</label>
+                    <input id="encounter-id" type="text" readonly data-testid="input-encounter-id">
+                </div>
+                <div>
+                    <label for="patient-nbr">Patient No</label>
+                    <input id="patient-nbr" type="text" readonly data-testid="input-patient-nbr">
+                </div>
+                <div>
+                    <label for="status">Status</label>
+                    <select id="status" data-testid="select-status"></select>
+                </div>
+                <div>
+                    <label for="assigned-to">Assigned To</label>
+                    <select id="assigned-to" data-testid="select-assigned-to"></select>
+                </div>
+                <div class="full">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" maxlength="2000" data-testid="input-notes" placeholder="Follow-up details, next steps…"></textarea>
+                </div>
+                <div class="form-actions">
+                    <span class="message" id="form-message" data-testid="form-message" aria-live="polite"></span>
+                    <button type="submit" id="btn-update" data-testid="btn-update">Update &gt;</button>
+                </div>
+            </form>
+        </section>
+
+        <section data-testid="outcome-section">
+            <h2>30-Day Outcome</h2>
+            <p class="form-note">Record this once the 30-day follow-up is complete. It does not change the risk score.</p>
+            <form id="outcome-form" class="form-grid" data-testid="outcome-form" novalidate>
+                <div>
+                    <label for="readmitted">Readmitted</label>
+                    <select id="readmitted" data-testid="select-readmitted"></select>
+                </div>
+                <div class="form-actions">
+                    <span class="message" id="outcome-message" data-testid="outcome-message" role="alert"></span>
+                    <button type="submit" id="btn-outcome" data-testid="btn-outcome" disabled>Save outcome</button>
+                </div>
+            </form>
+        </section>
+
+        <section>
+            <h2>Current Intervention</h2>
+            <div class="table-wrap">
+                <table data-testid="intervention-table">
+                    <thead>
+                        <tr>
+                            <th>Encounter ID</th>
+                            <th>Patient No</th>
+                            <th>Status</th>
+                            <th>Assigned To</th>
+                            <th>Notes</th>
+                            <th>Last Updated</th>
+                            <th>30-Day Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody id="intervention-body" data-testid="intervention-body">
+                        <tr><td colspan="7" class="empty">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script type="module">
+        import { configureApiClient, getIntervention, updateIntervention, updateReadmission, isApiError } from "./js/client.js";
+        import {
+            esc, statusLabel, teamLabel, formatTimestamp, markActiveNav,
+            fillSelect, INTERVENTION_STATUSES, TEAM_ROLES, READMISSION_OPTIONS, confirmDialog,
+        } from "./js/common.js";
+
+        // The page is served by FastAPI, so the API is on the same origin
+        configureApiClient({ baseUrl: window.location.origin });
+        // This page belongs to the High-Risk Queue, so that link stays highlighted
+        markActiveNav("high-risk.html");
+
+        const $ = (id) => document.getElementById(id);
+
+        function setMessage(text, kind = "") {
+            const el = $("form-message");
+            el.textContent = text;
+            el.className = `message ${kind}`.trim();
+        }
+
+        function renderTable(item) {
+            $("intervention-body").innerHTML = `
+                <tr data-testid="row-intervention">
+                    <td><strong>${esc(item.encounter_id)}</strong></td>
+                    <td>${esc(item.patient_nbr)}</td>
+                    <td>${esc(statusLabel(item.status))}</td>
+                    <td>${esc(teamLabel(item.assigned_to))}</td>
+                    <td class="wrap">${esc(item.notes ?? "")}</td>
+                    <td>${esc(formatTimestamp(item.updated_at))}</td>
+                    <td>${esc(outcomeLabel(item.readmitted))}</td>
+                </tr>
+            `;
+        }
+
+        // Fills the form from the server's current values, and the table below it
+        function fillForm(item) {
+            fillSelect($("status"), INTERVENTION_STATUSES);
+            fillSelect($("assigned-to"), TEAM_ROLES, "Unassigned");
+            fillOutcome(item.readmitted);
+            $("encounter-id").value = item.encounter_id;
+            $("patient-nbr").value = item.patient_nbr;
+            // Before the first update there is no status yet, so start from PENDING_REVIEW
+            $("status").value = item.status ?? "PENDING_REVIEW";
+            $("assigned-to").value = item.assigned_to ?? "";
+            $("notes").value = item.notes ?? "";
+            renderTable(item);
+        }
+
+        // ---- 30-day outcome ----
+        let currentOutcome = null; // the value saved on the server, null if not recorded
+
+        const outcomeLabel = (value) =>
+            READMISSION_OPTIONS.find((option) => option.value === value)?.label ?? "Not recorded";
+
+        function setOutcomeMessage(text, kind = "") {
+            const el = $("outcome-message");
+            el.textContent = text;
+            el.className = `message ${kind}`.trim();
+        }
+
+        function fillOutcome(value) {
+            currentOutcome = value ?? null;
+            fillSelect($("readmitted"), READMISSION_OPTIONS, "Not recorded yet");
+            $("readmitted").value = currentOutcome ?? "";
+            $("btn-outcome").disabled = true;
+        }
+
+        // Save is available only when the user picks a different value
+        $("readmitted").addEventListener("change", () => {
+            const chosen = $("readmitted").value;
+            $("btn-outcome").disabled = chosen === "" || chosen === currentOutcome;
+        });
+
+        $("outcome-form").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const chosen = $("readmitted").value;
+            if (chosen === "" || chosen === currentOutcome) return;
+
+            // Changing a recorded outcome needs an explicit confirmation, and is sent with overwrite
+            let overwrite = false;
+            if (currentOutcome !== null) {
+                const confirmed = await confirmDialog(
+                    `The outcome is already recorded as "${outcomeLabel(currentOutcome)}". Change it to "${outcomeLabel(chosen)}"?`,
+                    { confirmLabel: "Change outcome", cancelLabel: "Keep current" },
+                );
+                if (!confirmed) {
+                    // Keep the saved value on screen
+                    $("readmitted").value = currentOutcome;
+                    $("btn-outcome").disabled = true;
+                    return;
+                }
+                overwrite = true;
+            }
+
+            setOutcomeMessage("Saving…");
+            $("btn-outcome").disabled = true;
+            try {
+                await updateReadmission(encounterId, { readmitted: chosen, overwrite });
+                setOutcomeMessage("Outcome saved.", "success");
+                await load();
+            } catch (error) {
+                if (isApiError(error) && error.status === 409) {
+                    setOutcomeMessage("Another user recorded an outcome while you were editing. Reload the page to see it.", "error");
+                } else {
+                    setOutcomeMessage(
+                        isApiError(error) ? `Save failed: ${error.message}` : "Save failed. Please try again.",
+                        "error",
+                    );
+                }
+                $("btn-outcome").disabled = false;
+            }
+        });
+
+        function disableForm(disabled) {
+            $("readmitted").disabled = disabled;
+            $("btn-update").disabled = disabled;
+            $("status").disabled = disabled;
+            $("assigned-to").disabled = disabled;
+            $("notes").disabled = disabled;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const encounterId = params.get("encounter_id");
+
+        // Return to the page the user came from. Only known pages are accepted, so the link can't point elsewhere.
+        const BACK_LINKS = {
+            "index.html": "Back to Home",
+            "search.html": "Back to Search",
+            "high-risk.html": "Back to High-Risk Queue",
+        };
+        const from = BACK_LINKS[params.get("from")] ? params.get("from") : "high-risk.html";
+        $("back-link").href = from;
+        $("back-link").innerHTML = `&lsaquo; ${BACK_LINKS[from]}`;
+
+        async function load() {
+            try {
+                fillForm(await getIntervention(encounterId));
+            } catch (error) {
+                disableForm(true);
+                $("intervention-body").innerHTML = `<tr><td colspan="7" class="empty">No intervention to show.</td></tr>`;
+                setMessage(
+                    isApiError(error) && error.status === 404
+                        ? `Encounter ${encounterId} was not found.`
+                        : "Could not load this encounter. Please try again.",
+                    "error",
+                );
+            }
+        }
+
+        $("intervention-form").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            setMessage("Saving…");
+            $("btn-update").disabled = true;
+
+            // The update overwrites all three fields, so every field is sent each time
+            const notes = $("notes").value.trim();
+            const assignedTo = $("assigned-to").value;
+            try {
+                const result = await updateIntervention(encounterId, {
+                    status: $("status").value,
+                    assigned_to: assignedTo === "" ? null : assignedTo,
+                    notes: notes === "" ? null : notes,
+                });
+                setMessage(result.message, "success");
+                await load();
+            } catch (error) {
+                setMessage(
+                    isApiError(error) ? `Update failed: ${error.message}` : "Update failed. Please try again.",
+                    "error",
+                );
+            } finally {
+                $("btn-update").disabled = false;
+            }
+        });
+
+        if (!encounterId) {
+            disableForm(true);
+            setMessage("No encounter selected. Open one from the High-Risk Queue.", "error");
+            $("intervention-body").innerHTML = `<tr><td colspan="7" class="empty">No encounter selected.</td></tr>`;
+        } else {
+            load();
+        }
+    </script>
+</body>
+</html>

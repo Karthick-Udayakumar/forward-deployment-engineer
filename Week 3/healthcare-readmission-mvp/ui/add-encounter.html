@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Encounter</title>
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        .required::after {
+            content: " *";
+            color: var(--danger);
+        }
+
+        .form-note {
+            margin: 0 0 14px;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        /* Per-field error text, shown under the field it belongs to */
+        .field-error {
+            min-height: 1.1em;
+            margin: 4px 0 0;
+            font-size: 0.8rem;
+            color: var(--danger);
+        }
+
+        input.invalid, select.invalid {
+            border-color: var(--danger);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+        }
+
+        .message.error {
+            color: var(--danger);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="card" data-testid="add-encounter-page">
+        <header class="app-header">
+            <h1><a href="index.html">Diabetes Patient Management</a></h1>
+            <nav class="app-nav" aria-label="Main">
+                <a href="index.html">Home</a>
+                <a href="add-encounter.html" aria-current="page">Add Encounter</a>
+                <a href="search.html">Search Patient</a>
+                <a href="high-risk.html">High-Risk Queue</a>
+            </nav>
+        </header>
+
+        <section>
+            <h2>Add Patient Encounter</h2>
+            <p class="form-note">Fields marked * are required. The encounter ID and risk score are assigned by the system.</p>
+
+            <form id="encounter-form" class="form-grid" data-testid="encounter-form" novalidate>
+                <div>
+                    <label class="required" for="patient-number">Patient Number / ID</label>
+                    <input id="patient-number" type="text" maxlength="50" placeholder="e.g. 8222157" required data-testid="input-patient-number">
+                    <p class="field-error" id="err-patient-number" data-testid="error-patient-number"></p>
+                </div>
+                <div>
+                    <label for="age-group">Age Bracket</label>
+                    <select id="age-group" data-testid="select-age-group"></select>
+                    <p class="field-error" id="err-age-group" data-testid="error-age-group"></p>
+                </div>
+                <div>
+                    <label class="required" for="time-hospital">Time in Hospital (days)</label>
+                    <input id="time-hospital" type="number" min="0" step="1" placeholder="e.g. 3" required data-testid="input-time-hospital">
+                    <p class="field-error" id="err-time-hospital" data-testid="error-time-hospital"></p>
+                </div>
+                <div>
+                    <label class="required" for="inpatient-visits">Inpatient Visits</label>
+                    <input id="inpatient-visits" type="number" min="0" step="1" placeholder="e.g. 1" required data-testid="input-inpatient-visits">
+                    <p class="field-error" id="err-inpatient-visits" data-testid="error-inpatient-visits"></p>
+                </div>
+                <div>
+                    <label class="required" for="emergency-visits">Emergency Visits</label>
+                    <input id="emergency-visits" type="number" min="0" step="1" placeholder="e.g. 0" required data-testid="input-emergency-visits">
+                    <p class="field-error" id="err-emergency-visits" data-testid="error-emergency-visits"></p>
+                </div>
+                <div>
+                    <label class="required" for="outpatient-visits">Outpatient Visits</label>
+                    <input id="outpatient-visits" type="number" min="0" step="1" placeholder="e.g. 2" required data-testid="input-outpatient-visits">
+                    <p class="field-error" id="err-outpatient-visits" data-testid="error-outpatient-visits"></p>
+                </div>
+                <div>
+                    <label class="required" for="num-medications">Number of Medications</label>
+                    <input id="num-medications" type="number" min="0" step="1" placeholder="e.g. 12" required data-testid="input-num-medications">
+                    <p class="field-error" id="err-num-medications" data-testid="error-num-medications"></p>
+                </div>
+                <div>
+                    <label for="lab-procedures">Lab Procedures</label>
+                    <input id="lab-procedures" type="number" min="0" step="1" placeholder="e.g. 40" data-testid="input-lab-procedures">
+                    <p class="field-error" id="err-lab-procedures" data-testid="error-lab-procedures"></p>
+                </div>
+                <div>
+                    <label for="admission-type">Admission Type</label>
+                    <select id="admission-type" data-testid="select-admission-type"></select>
+                    <p class="field-error" id="err-admission-type" data-testid="error-admission-type"></p>
+                </div>
+                <div>
+                    <label for="discharge-disposition">Discharge Disposition</label>
+                    <select id="discharge-disposition" data-testid="select-discharge-disposition"></select>
+                    <p class="field-error" id="err-discharge-disposition" data-testid="error-discharge-disposition"></p>
+                </div>
+
+                <div class="form-actions">
+                    <span class="message" id="form-message" data-testid="form-message" role="alert"></span>
+                    <button type="button" class="secondary" id="btn-cancel" data-testid="btn-cancel">Cancel</button>
+                    <button type="submit" id="btn-save" data-testid="btn-save-encounter">Add Record &gt;</button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <script type="module">
+        import { configureApiClient, createEncounter, getReferenceCodes, isApiError } from "./js/client.js";
+        import { markActiveNav, fillSelect, AGE_BRACKETS } from "./js/common.js";
+
+        // The page is served by FastAPI, so the API is on the same origin
+        configureApiClient({ baseUrl: window.location.origin });
+        markActiveNav("add-encounter.html");
+        fillSelect(document.getElementById("age-group"), AGE_BRACKETS, "Select age group");
+
+        // Admission and discharge dropdowns come from the reference list. If it can't load, the fields are
+        // disabled and the record can still be saved without them, because both are optional.
+        async function loadReferenceCodes() {
+            const selects = [
+                ["admission-type", "admission_type_id"],
+                ["discharge-disposition", "discharge_disposition_id"],
+            ];
+            try {
+                const codes = await getReferenceCodes();
+                for (const [id, key] of selects) {
+                    const options = codes[key].map((item) => ({ value: item.code, label: `${item.code} – ${item.label}` }));
+                    fillSelect(document.getElementById(id), options, "Not specified");
+                }
+            } catch (error) {
+                for (const [id] of selects) {
+                    fillSelect(document.getElementById(id), [], "Could not load options");
+                    document.getElementById(id).disabled = true;
+                }
+            }
+        }
+        loadReferenceCodes();
+
+        const $ = (id) => document.getElementById(id);
+
+        // One entry per form field: its element id, the API field name, the label the user sees,
+        // the kind of input, and the lowest allowed value for numbers
+        const FIELDS = [
+            { id: "patient-number", api: "patient_nbr", label: "Patient Number / ID", kind: "text", required: true },
+            { id: "age-group", api: "age", label: "Age Bracket", kind: "select" },
+            { id: "time-hospital", api: "time_in_hospital", label: "Time in Hospital (days)", kind: "number", required: true, min: 0 },
+            { id: "inpatient-visits", api: "number_inpatient", label: "Inpatient Visits", kind: "number", required: true, min: 0 },
+            { id: "emergency-visits", api: "number_emergency", label: "Emergency Visits", kind: "number", required: true, min: 0 },
+            { id: "outpatient-visits", api: "number_outpatient", label: "Outpatient Visits", kind: "number", required: true, min: 0 },
+            { id: "num-medications", api: "num_medications", label: "Number of Medications", kind: "number", required: true, min: 0 },
+            { id: "lab-procedures", api: "num_lab_procedures", label: "Lab Procedures", kind: "number", min: 0 },
+            // "code" fields are dropdowns filled from the reference list; the value sent is the code number
+            { id: "admission-type", api: "admission_type_id", label: "Admission Type", kind: "code" },
+            { id: "discharge-disposition", api: "discharge_disposition_id", label: "Discharge Disposition", kind: "code" },
+        ];
+        const FIELD_BY_API = Object.fromEntries(FIELDS.map((f) => [f.api, f]));
+
+        // Plain-language messages for the validation errors the API can return
+        const API_MESSAGES = {
+            missing: () => "This field is required.",
+            string_too_short: () => "This field is required.",
+            string_too_long: () => "Must be 50 characters or fewer.",
+            greater_than_equal: (item) => `Must be ${item.ctx?.ge ?? 0} or more.`,
+            literal_error: () => "Choose one of the listed age brackets.",
+            int_parsing: () => "Enter a whole number.",
+            int_type: () => "Enter a whole number.",
+            int_from_float: () => "Enter a whole number.",
+        };
+
+        function rawValue(field) {
+            return $(field.id).value.trim();
+        }
+
+        // Checks the form in the browser, so most mistakes are caught before a request is sent
+        function validateForm() {
+            const errors = {};
+            for (const field of FIELDS) {
+                const raw = rawValue(field);
+                if (raw === "") {
+                    if (field.required) errors[field.id] = "This field is required.";
+                    continue;
+                }
+                if (field.kind === "text") {
+                    if (raw.length > 50) errors[field.id] = "Must be 50 characters or fewer.";
+                } else if (field.kind === "number") {
+                    const number = Number(raw);
+                    if (!Number.isInteger(number)) {
+                        errors[field.id] = "Enter a whole number.";
+                    } else if (number < field.min) {
+                        errors[field.id] = `Must be ${field.min} or more.`;
+                    }
+                }
+            }
+            return errors;
+        }
+
+        function buildPayload() {
+            const payload = {};
+            for (const field of FIELDS) {
+                const raw = rawValue(field);
+                if (raw === "") {
+                    payload[field.api] = null;
+                } else {
+                    payload[field.api] = field.kind === "text" || field.kind === "select" ? raw : Number(raw);
+                }
+            }
+            return payload;
+        }
+
+        // Shows each message under its field and marks the field invalid; clears fields with no message
+        function showFieldErrors(errors) {
+            for (const field of FIELDS) {
+                const message = errors[field.id] ?? "";
+                $(`err-${field.id}`).textContent = message;
+                $(field.id).classList.toggle("invalid", message !== "");
+                $(field.id).setAttribute("aria-invalid", message !== "" ? "true" : "false");
+            }
+        }
+
+        function setSummary(text, kind = "") {
+            const el = $("form-message");
+            el.textContent = text;
+            el.className = `message ${kind}`.trim();
+        }
+
+        function setBusy(busy) {
+            $("btn-save").disabled = busy;
+            $("btn-save").textContent = busy ? "Saving…" : "Add Record >";
+        }
+
+        // Converts the API's validation list into messages for each field
+        function fieldErrorsFromApi(detail) {
+            const errors = {};
+            const other = [];
+            for (const item of detail) {
+                const field = FIELD_BY_API[item.loc?.at(-1)];
+                const describe = API_MESSAGES[item.type] ?? (() => item.msg);
+                if (field) {
+                    errors[field.id] = describe(item);
+                } else {
+                    other.push(item.msg);
+                }
+            }
+            return { errors, other };
+        }
+
+        function reportFieldProblems(errors) {
+            const count = Object.keys(errors).length;
+            showFieldErrors(errors);
+            const first = FIELDS.find((field) => errors[field.id]);
+            if (first) $(first.id).focus();
+            setSummary(`Please correct ${count} ${count === 1 ? "field" : "fields"} highlighted below.`, "error");
+        }
+
+        // Turns any failure from the save request into a message the user can act on
+        function explainSaveError(error) {
+            if (error instanceof TypeError || error instanceof RangeError) {
+                return { text: error.message };
+            }
+            if (isApiError(error)) {
+                if (error.status === 422 && Array.isArray(error.detail)) {
+                    const { errors, other } = fieldErrorsFromApi(error.detail);
+                    showFieldErrors(errors);
+                    if (Object.keys(errors).length > 0) {
+                        return { text: `Please correct ${Object.keys(errors).length} field(s) highlighted below.` };
+                    }
+                    return { text: other.join(" ") || "The server rejected the record. Check the values and try again." };
+                }
+                if (error.code === "NETWORK_ERROR" || error.code === "TIMEOUT") {
+                    return { text: "Can't reach the server right now. Check that the application is running, then try again." };
+                }
+                if (error.status !== null && error.status >= 500) {
+                    return { text: "The server couldn't save the record, so nothing was added. Please try again." };
+                }
+                return { text: error.message };
+            }
+            return { text: "Something unexpected went wrong. Please try again." };
+        }
+
+        // Clear a field's message as soon as the user changes it
+        FIELDS.forEach((field) => {
+            $(field.id).addEventListener("input", () => {
+                $(`err-${field.id}`).textContent = "";
+                $(field.id).classList.remove("invalid");
+                $(field.id).setAttribute("aria-invalid", "false");
+            });
+        });
+
+        $("encounter-form").addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const errors = validateForm();
+            showFieldErrors(errors);
+            if (Object.keys(errors).length > 0) {
+                reportFieldProblems(errors);
+                return;
+            }
+
+            setBusy(true);
+            setSummary("Saving…");
+            try {
+                const saved = await createEncounter(buildPayload());
+                // Go to Home, which shows the new record at the top of the list
+                window.location.href = `index.html?saved=${encodeURIComponent(saved.encounter_id)}`;
+            } catch (error) {
+                const { text } = explainSaveError(error);
+                setSummary(text, "error");
+                setBusy(false);
+            }
+        });
+
+        $("btn-cancel").addEventListener("click", () => {
+            window.location.href = "index.html";
+        });
+    </script>
+</body>
+</html>
