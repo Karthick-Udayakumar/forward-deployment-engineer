@@ -1,0 +1,582 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Employee Performance Review Management",
+    "description": "Requirements, design and API specification: Testleaf",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/employees": {
+      "get": {
+        "summary": "List Employees",
+        "description": "List of employees, for dropdowns.",
+        "operationId": "list_employees_api_employees_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Employee"
+                  },
+                  "type": "array",
+                  "title": "Response List Employees Api Employees Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/review-periods": {
+      "get": {
+        "summary": "List Review Periods",
+        "description": "List of review periods, newest first. Pass status=Open for the periods that accept new reviews.",
+        "operationId": "list_review_periods_api_review_periods_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Open",
+                    "Closed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewPeriod"
+                  },
+                  "title": "Response List Review Periods Api Review Periods Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reviews": {
+      "get": {
+        "summary": "Reviews",
+        "description": "Reviews with optional filters (AND), newest first. Empty list when nothing matches.\nThe X-Total-Count header holds the number of matching reviews across all pages.",
+        "operationId": "reviews_api_reviews_get",
+        "parameters": [
+          {
+            "name": "period_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period Id"
+            }
+          },
+          {
+            "name": "employee_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Employee Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewListItem"
+                  },
+                  "title": "Response Reviews Api Reviews Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Review",
+        "description": "Submits a review. The server calculates average_rating.\n404 if the employee or period does not exist; 409 if the period is closed or the employee already has a review for it.",
+        "operationId": "create_review_api_reviews_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reviews/{review_id}": {
+      "get": {
+        "summary": "Get Review",
+        "description": "One review with employee and period names. 404 if missing.",
+        "operationId": "get_review_api_reviews__review_id__get",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Review Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewListItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Employee": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employee_id": {
+            "type": "string",
+            "title": "Employee Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employee_id",
+          "name"
+        ],
+        "title": "Employee"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Review": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employee_id": {
+            "type": "integer",
+            "title": "Employee Id"
+          },
+          "period_id": {
+            "type": "integer",
+            "title": "Period Id"
+          },
+          "quality_rating": {
+            "type": "integer",
+            "title": "Quality Rating"
+          },
+          "delivery_rating": {
+            "type": "integer",
+            "title": "Delivery Rating"
+          },
+          "teamwork_rating": {
+            "type": "integer",
+            "title": "Teamwork Rating"
+          },
+          "average_rating": {
+            "type": "number",
+            "title": "Average Rating"
+          },
+          "comments": {
+            "type": "string",
+            "title": "Comments"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employee_id",
+          "period_id",
+          "quality_rating",
+          "delivery_rating",
+          "teamwork_rating",
+          "average_rating",
+          "comments",
+          "created_at"
+        ],
+        "title": "Review"
+      },
+      "ReviewCreate": {
+        "properties": {
+          "employee_id": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Employee Id"
+          },
+          "period_id": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Period Id"
+          },
+          "quality_rating": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Quality Rating"
+          },
+          "delivery_rating": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Delivery Rating"
+          },
+          "teamwork_rating": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Teamwork Rating"
+          },
+          "comments": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Comments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employee_id",
+          "period_id",
+          "quality_rating",
+          "delivery_rating",
+          "teamwork_rating",
+          "comments"
+        ],
+        "title": "ReviewCreate",
+        "description": "Fields a client sends to create a review. id, average_rating and created_at are set by the server."
+      },
+      "ReviewListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employee_id": {
+            "type": "integer",
+            "title": "Employee Id"
+          },
+          "period_id": {
+            "type": "integer",
+            "title": "Period Id"
+          },
+          "quality_rating": {
+            "type": "integer",
+            "title": "Quality Rating"
+          },
+          "delivery_rating": {
+            "type": "integer",
+            "title": "Delivery Rating"
+          },
+          "teamwork_rating": {
+            "type": "integer",
+            "title": "Teamwork Rating"
+          },
+          "average_rating": {
+            "type": "number",
+            "title": "Average Rating"
+          },
+          "comments": {
+            "type": "string",
+            "title": "Comments"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "employee_code": {
+            "type": "string",
+            "title": "Employee Code"
+          },
+          "employee_name": {
+            "type": "string",
+            "title": "Employee Name"
+          },
+          "period_name": {
+            "type": "string",
+            "title": "Period Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employee_id",
+          "period_id",
+          "quality_rating",
+          "delivery_rating",
+          "teamwork_rating",
+          "average_rating",
+          "comments",
+          "created_at",
+          "employee_code",
+          "employee_name",
+          "period_name"
+        ],
+        "title": "ReviewListItem",
+        "description": "A review joined with the employee and period it belongs to. Used by the list and the details screen."
+      },
+      "ReviewPeriod": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "title": "End Date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Open",
+              "Closed"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "start_date",
+          "end_date",
+          "status"
+        ],
+        "title": "ReviewPeriod"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
