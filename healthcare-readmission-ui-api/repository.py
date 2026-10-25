@@ -6,7 +6,7 @@ def get_all_encounters(limit: int = 100, offset: int = 0):
     with get_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
-                "SELECT * FROM patient_encounters LIMIT %s OFFSET %s;",
+                "SELECT * FROM patient_encounters ORDER BY encounter_id LIMIT %s OFFSET %s;",
                 (limit, offset)
             )
             return cursor.fetchall()
