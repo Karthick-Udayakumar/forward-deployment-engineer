@@ -1,0 +1,97 @@
+{
+  "method": "fixed",
+  "source": "RAG_Setup/sample_policy.md",
+  "chunks": [
+    {
+      "text": "# Cinebook Customer Policy\n\n\n## Booking and seat confirmation\n\nA customer chooses a seat, such as H7, and submits a booking request. Cinebook asks the cinema's seat system to place a temporary hold. A hold is not a confirmed ticket. The sys",
+      "metadata": {
+        "start": 0,
+        "end": 240
+      }
+    },
+    {
+      "text": "ot a confirmed ticket. The system records the hold identifier so it can later check whether the seat is still reserved.\n\nAfter the customer attempts payment, the booking service asks the payment provider for the transaction status. The book",
+      "metadata": {
+        "start": 210,
+        "end": 450
+      }
+    },
+    {
+      "text": "e transaction status. The booking becomes confirmed only when payment success and valid seat allocation have both been verified. A booking reference is then issued and displayed to the customer. The customer should not interpret a loading s",
+      "metadata": {
+        "start": 420,
+        "end": 660
+      }
+    },
+    {
+      "text": "ould not interpret a loading screen as confirmation.\n\n## Payment timeouts and retries\n\nIf a payment request times out, the outcome is unknown. The booking service must verify the original payment status using the purchase identifier before ",
+      "metadata": {
+        "start": 630,
+        "end": 870
+      }
+    },
+    {
+      "text": "he purchase identifier before starting any new charge. A timeout is not evidence that payment failed.\n\nA customer who sees a pending status should refresh the booking status or contact support with the purchase identifier. Repeatedly paying",
+      "metadata": {
+        "start": 840,
+        "end": 1080
+      }
+    },
+    {
+      "text": " identifier. Repeatedly paying can cause duplicate charges. If a seat hold expires before payment is verified, the booking may require reconciliation rather than an immediate confirmation.\n\n## Refunds and cancellations\n\nCustomers may reques",
+      "metadata": {
+        "start": 1050,
+        "end": 1290
+      }
+    },
+    {
+      "text": "llations\n\nCustomers may request cancellation before the show starts. For this teaching example, refunds for eligible cancellations are processed to the original payment method within five working days. A request submitted after the show sta",
+      "metadata": {
+        "start": 1260,
+        "end": 1500
+      }
+    },
+    {
+      "text": "t submitted after the show starts is not automatically eligible for a refund.\n\n### Refund exceptions\n\nIf the cinema cancels the screening, a customer can request a full refund or an alternative show. A duplicate successful payment should be",
+      "metadata": {
+        "start": 1470,
+        "end": 1710
+      }
+    },
+    {
+      "text": "e successful payment should be investigated with both transaction identifiers; support must not promise a second refund until the payment provider has confirmed the amounts.\n\n## Privacy and customer support\n\nSupport may ask for a booking re",
+      "metadata": {
+        "start": 1680,
+        "end": 1920
+      }
+    },
+    {
+      "text": "pport may ask for a booking reference, but should not request a card password or full card number. Operational logs should keep a request identifier and status changes while minimizing personal data. A complaint should be traced using that ",
+      "metadata": {
+        "start": 1890,
+        "end": 2130
+      }
+    },
+    {
+      "text": "t should be traced using that identifier, not by guessing which payment or seat record belongs to the customer.\n\n## System observability\n\nLogs describe what happened during a booking; metrics show patterns such as payment timeout rates; and",
+      "metadata": {
+        "start": 2100,
+        "end": 2340
+      }
+    },
+    {
+      "text": " as payment timeout rates; and distributed traces show which service consumed the request time. These three signals help engineers distinguish a slow gateway from an overloaded booking database. Good monitoring does not replace the need to ",
+      "metadata": {
+        "start": 2310,
+        "end": 2550
+      }
+    },
+    {
+      "text": " does not replace the need to verify payment truth at the payment provider.",
+      "metadata": {
+        "start": 2520,
+        "end": 2595
+      }
+    }
+  ]
+}

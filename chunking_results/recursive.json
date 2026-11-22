@@ -1,0 +1,90 @@
+{
+  "method": "recursive",
+  "source": "RAG_Setup/sample_policy.md",
+  "chunks": [
+    {
+      "text": "# Cinebook Customer Policy\n\n\n## Booking and seat confirmation",
+      "metadata": {}
+    },
+    {
+      "text": "A customer chooses a seat, such as H7, and submits a booking request. Cinebook asks the cinema's seat system to place a temporary hold. A hold is not a confirmed ticket. The system records the hold identifier so it can later check whether",
+      "metadata": {}
+    },
+    {
+      "text": "so it can later check whether the seat is still reserved.",
+      "metadata": {}
+    },
+    {
+      "text": "After the customer attempts payment, the booking service asks the payment provider for the transaction status. The booking becomes confirmed only when payment success and valid seat allocation have both been verified. A booking reference",
+      "metadata": {}
+    },
+    {
+      "text": "verified. A booking reference is then issued and displayed to the customer. The customer should not interpret a loading screen as confirmation.",
+      "metadata": {}
+    },
+    {
+      "text": "## Payment timeouts and retries",
+      "metadata": {}
+    },
+    {
+      "text": "If a payment request times out, the outcome is unknown. The booking service must verify the original payment status using the purchase identifier before starting any new charge. A timeout is not evidence that payment failed.",
+      "metadata": {}
+    },
+    {
+      "text": "A customer who sees a pending status should refresh the booking status or contact support with the purchase identifier. Repeatedly paying can cause duplicate charges. If a seat hold expires before payment is verified, the booking may",
+      "metadata": {}
+    },
+    {
+      "text": "is verified, the booking may require reconciliation rather than an immediate confirmation.",
+      "metadata": {}
+    },
+    {
+      "text": "## Refunds and cancellations",
+      "metadata": {}
+    },
+    {
+      "text": "Customers may request cancellation before the show starts. For this teaching example, refunds for eligible cancellations are processed to the original payment method within five working days. A request submitted after the show starts is",
+      "metadata": {}
+    },
+    {
+      "text": "after the show starts is not automatically eligible for a refund.",
+      "metadata": {}
+    },
+    {
+      "text": "### Refund exceptions",
+      "metadata": {}
+    },
+    {
+      "text": "If the cinema cancels the screening, a customer can request a full refund or an alternative show. A duplicate successful payment should be investigated with both transaction identifiers; support must not promise a second refund until the",
+      "metadata": {}
+    },
+    {
+      "text": "a second refund until the payment provider has confirmed the amounts.",
+      "metadata": {}
+    },
+    {
+      "text": "## Privacy and customer support",
+      "metadata": {}
+    },
+    {
+      "text": "Support may ask for a booking reference, but should not request a card password or full card number. Operational logs should keep a request identifier and status changes while minimizing personal data. A complaint should be traced using",
+      "metadata": {}
+    },
+    {
+      "text": "should be traced using that identifier, not by guessing which payment or seat record belongs to the customer.",
+      "metadata": {}
+    },
+    {
+      "text": "## System observability",
+      "metadata": {}
+    },
+    {
+      "text": "Logs describe what happened during a booking; metrics show patterns such as payment timeout rates; and distributed traces show which service consumed the request time. These three signals help engineers distinguish a slow gateway from an",
+      "metadata": {}
+    },
+    {
+      "text": "a slow gateway from an overloaded booking database. Good monitoring does not replace the need to verify payment truth at the payment provider.",
+      "metadata": {}
+    }
+  ]
+}
